@@ -13,7 +13,7 @@ import (
 	"github.com/neko233-com/laya-go/internal/apitypes"
 )
 
-// DefaultBaseURL is the local development default.
+// DefaultBaseURL is the local/LAN default for laya-deploy.
 const DefaultBaseURL = "http://127.0.0.1:7710"
 
 // Client talks to a Laya server.

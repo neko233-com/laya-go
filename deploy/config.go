@@ -25,7 +25,8 @@ type Config struct {
 
 func defaultConfig() Config {
 	return Config{
-		Addr: "127.0.0.1:7400",
+		// Bind all interfaces so LAN clients can reach the model service.
+		Addr: "0.0.0.0:7710",
 		AutoUpdate: AutoUpdateConfig{
 			Enabled:     true,
 			AutoApply:   true,

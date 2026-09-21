@@ -37,34 +37,34 @@ go build -o bin/laya-mcp ./mcp
 ./bin/laya decide --feature intent_change=0.9 --feature target_known=0.8 --top-k 3
 ```
 
-### 一键部署（端口 7400）
+### 一键部署（端口 7710）
 
 部署服务器用 Go 编写（`deploy/`），在同一进程提供 Laya 模型服务与 `/deploy/status`。
 
 ```powershell
-.\deploy\deploy.ps1 -Port 7400
+.\deploy\deploy.ps1 -Port 7710
 ```
 
 ```sh
-./deploy/deploy.sh --port 7400
+./deploy/deploy.sh --Port 7710
 ```
 
-部署后客户端地址：`http://127.0.0.1:7400`（`LAYA_URL`）。说明见 [`docs/deploy.md`](docs/deploy.md)。
+部署后客户端地址：`http://127.0.0.1:7710`（`LAYA_URL`）。说明见 [`docs/deploy.md`](docs/deploy.md)。
 
-### Windows 服务 + 自动更新（端口 7400）
+### Windows 服务 + 自动更新（端口 7710）
 
 ```powershell
 # 管理员 PowerShell
-.\deploy\install-service.ps1 -Port 7400
+.\deploy\install-service.ps1 -Port 7710
 ```
 
 服务名 `LayaDeploy`，安装目录 `%ProgramData%\Laya`，配置 `config.json`。自动更新可开关：
 
 ```powershell
 # 关闭自动更新
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 # 打开自动更新
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 ```
 
 发版给自动更新用：`.\deploy\publish-release.ps1 -Tag vX.Y.Z`。
@@ -73,11 +73,11 @@ Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType 
 
 | 环境变量 | 组件 | 默认值 |
 | --- | --- | --- |
-| `LAYA_ADDR` | server | `127.0.0.1:7710` |
-| `LAYA_URL` | cli / mcp / deploy | `http://127.0.0.1:7400`（部署后） |
+| `LAYA_ADDR` | server / deploy | `0.0.0.0:7710` |
+| `LAYA_URL` | cli / mcp | `http://<本机IP>:7710` 或 `http://127.0.0.1:7710` |
 | `LAYA_CONFIG` | laya-deploy | `%ProgramData%\Laya\config.json` |
 
-本地开源使用不需要 API Key。
+本地开源使用不需要 API Key。默认监听 `0.0.0.0:7710` 供内网访问；**无鉴权**，请只在可信内网开放，或用防火墙限制来源。
 
 ## 替换 JEV
 

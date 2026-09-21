@@ -2,7 +2,7 @@
 
 One-click local deployment for Laya: Go deploy server (`laya-deploy`) hosts the model API.
 
-Default port: **7400**. Version lives in [`internal/version/version.go`](../internal/version/version.go).
+Default port: **7710**. Version lives in [`internal/version/version.go`](../internal/version/version.go).
 
 ## One-click scripts
 
@@ -12,11 +12,11 @@ Default port: **7400**. Version lives in [`internal/version/version.go`](../inte
 | [`deploy.sh`](../deploy/deploy.sh) | Linux / macOS |
 
 ```powershell
-.\deploy\deploy.ps1 -Port 7400
+.\deploy\deploy.ps1 -Port 7710
 ```
 
 ```sh
-./deploy/deploy.sh --port 7400
+./deploy/deploy.sh --Port 7710
 ```
 
 ## Windows service
@@ -24,7 +24,7 @@ Default port: **7400**. Version lives in [`internal/version/version.go`](../inte
 Install as a Windows service (Administrator required):
 
 ```powershell
-.\deploy\install-service.ps1 -Port 7400
+.\deploy\install-service.ps1 -Port 7710
 ```
 
 Defaults:
@@ -35,7 +35,7 @@ Defaults:
 | Display name | Laya Deploy Server |
 | Install dir | `%ProgramData%\Laya` |
 | Config | `%ProgramData%\Laya\config.json` |
-| Listen | `127.0.0.1:7400` |
+| Listen | `0.0.0.0:7710` (all interfaces / LAN) |
 | Startup | Automatic |
 
 Uninstall:
@@ -51,7 +51,7 @@ Uninstall:
 
 ```json
 {
-  "addr": "127.0.0.1:7400",
+  "addr": "0.0.0.0:7710",
   "auto_update": {
     "enabled": true,
     "auto_apply": true,
@@ -61,6 +61,10 @@ Uninstall:
   }
 }
 ```
+
+Default bind is **`0.0.0.0:7710`** so LAN clients can call the model service. LAN clients use `http://<this-host-ip>:7710`. Local tools may still use `http://127.0.0.1:7710`.
+
+**Security:** laya-deploy has no authentication. Binding `0.0.0.0` exposes decide/update endpoints to anyone who can reach Port 7710. Keep the host on a trusted LAN, or add Windows Firewall / reverse-proxy allowlists before wider exposure.
 
 | Field | Meaning |
 | --- | --- |
@@ -83,7 +87,7 @@ Uninstall:
 Toggle auto-update at runtime:
 
 ```powershell
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config `
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config `
   -ContentType application/json `
   -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 ```
@@ -106,15 +110,15 @@ If the GitHub release has no platform assets, check reports the tag but apply wi
 
 ```powershell
 Get-Service LayaDeploy
-curl.exe -s http://127.0.0.1:7400/health
-curl.exe -s http://127.0.0.1:7400/deploy/status
-curl.exe -s http://127.0.0.1:7400/deploy/update/check
+curl.exe -s http://127.0.0.1:7710/health
+curl.exe -s http://127.0.0.1:7710/deploy/status
+curl.exe -s http://127.0.0.1:7710/deploy/update/check
 ```
 
 CLI:
 
 ```powershell
-$env:LAYA_URL = 'http://127.0.0.1:7400'
+$env:LAYA_URL = 'http://127.0.0.1:7710'
 & "$env:ProgramData\Laya\laya.exe" health
 & "$env:ProgramData\Laya\laya.exe" decide --feature intent_change=0.9 --feature target_known=0.8
 ```
@@ -122,7 +126,7 @@ $env:LAYA_URL = 'http://127.0.0.1:7400'
 ## Environment
 
 ```text
-LAYA_URL=http://127.0.0.1:7400
+LAYA_URL=http://127.0.0.1:7710
 LAYA_CONFIG=C:\ProgramData\Laya\config.json
 ```
 
@@ -131,6 +135,6 @@ LAYA_CONFIG=C:\ProgramData\Laya\config.json
 - Service install requires elevation.
 - `addr` changes in config need service restart; `auto_update` toggles apply without restart.
 - Deploy API has no auth; bind to loopback unless a gateway is in front.
-- Ad-hoc `deploy.ps1` process and the Windows service must not fight on port 7400; install script stops stray processes first.
+- Ad-hoc `deploy.ps1` process and the Windows service must not fight on Port 7710; install script stops stray processes first.
 
 Related: [api.md](api.md), [development.md](development.md), [architecture.md](architecture.md).

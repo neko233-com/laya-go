@@ -35,56 +35,6 @@ type Model struct {
 	MaxLatencyMs int
 }
 
-// Registry holds loaded models.
-type Registry struct {
-	models map[string]*Model
-}
-
-// NewRegistry returns a registry with the built-in Laya family.
-func NewRegistry() *Registry {
-	r := &Registry{models: make(map[string]*Model)}
-	for _, m := range BuiltInModels() {
-		r.models[m.ID] = m
-	}
-	return r
-}
-
-// Get returns a model by id, or default when id is empty.
-func (r *Registry) Get(id string) (*Model, error) {
-	if id == "" {
-		id = DefaultModelID
-	}
-	m, ok := r.models[id]
-	if !ok {
-		return nil, fmt.Errorf("unknown model %q", id)
-	}
-	return m, nil
-}
-
-// List returns model metadata sorted by id.
-func (r *Registry) List() []apitypes.ModelInfo {
-	out := make([]apitypes.ModelInfo, 0, len(r.models))
-	for _, m := range r.models {
-		ids := make([]string, 0, len(m.Patterns))
-		for _, p := range m.Patterns {
-			ids = append(ids, p.ID)
-		}
-		sort.Strings(ids)
-		out = append(out, apitypes.ModelInfo{
-			ID:           m.ID,
-			Family:       m.Family,
-			Description:  m.Description,
-			Patterns:     ids,
-			MaxLatencyMs: m.MaxLatencyMs,
-		})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
-	return out
-}
-
-// Count returns the number of registered models.
-func (r *Registry) Count() int { return len(r.models) }
-
 // Result is a scored prediction set.
 type Result struct {
 	Model      string

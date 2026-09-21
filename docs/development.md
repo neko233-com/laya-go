@@ -35,8 +35,8 @@ Env:
 
 | Variable | Used by | Default |
 | --- | --- | --- |
-| `LAYA_ADDR` | server listen address | `127.0.0.1:7710` |
-| `LAYA_URL` | cli / mcp base URL | `http://127.0.0.1:7710` |
+| `LAYA_ADDR` | server listen address | `0.0.0.0:7710` |
+| `LAYA_URL` | cli / mcp base URL | `http://127.0.0.1:7710` (local) or `http://<host-ip>:7710` (LAN) |
 
 ## Component skills
 

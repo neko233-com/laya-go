@@ -29,22 +29,22 @@ go build -o bin/laya-mcp ./mcp
 go build -o bin/laya-deploy ./deploy
 ```
 
-One-click local deploy (default port **7400**):
+One-click local deploy (default port **7710**):
 
 ```powershell
-.\deploy\deploy.ps1 -Port 7400
+.\deploy\deploy.ps1 -Port 7710
 ```
 
 ```sh
-./deploy/deploy.sh --port 7400
+./deploy/deploy.sh --Port 7710
 ```
 
 Windows service + auto-update (Administrator):
 
 ```powershell
-.\deploy\install-service.ps1 -Port 7400
+.\deploy\install-service.ps1 -Port 7710
 # toggle auto-update
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 ```
 
 Service details: [docs/deploy.md](docs/deploy.md). Version: `internal/version/version.go`.
@@ -52,7 +52,7 @@ Service details: [docs/deploy.md](docs/deploy.md). Version: `internal/version/ve
 Smoke:
 
 ```sh
-./bin/laya-server -addr 127.0.0.1:7710
+./bin/laya-server -addr 0.0.0.0:7710
 ./bin/laya health
 ./bin/laya decide --feature intent_change=0.9 --feature target_known=0.8
 ```
@@ -61,7 +61,7 @@ Smoke:
 
 - Feature keys are lower-case structured signals; never invent free-text generation paths in the engine.
 - JEV replacement lives at `POST /v1/jev/decide` and CLI `laya jev-decide` / MCP `laya_decide` with `jev_compat:true`. New agents use native `/v1/decide`.
-- Default listen address is `127.0.0.1:7710`. Override with `LAYA_ADDR` (server) or `LAYA_URL` (CLI/MCP).
+- Default listen address is `0.0.0.0:7710` (LAN-facing). Override with `LAYA_ADDR` (server) or `LAYA_URL` (CLI/MCP). There is no auth — restrict with firewall/VPN on untrusted networks.
 - Docs follow [docs/AGENTS.md](docs/AGENTS.md): one fact one home; archive holds one-off records.
 - No credentials, production IPs, or private keys in this repository.
 
@@ -75,7 +75,7 @@ Smoke:
 | [.mimocode/skills/laya-cli/SKILL.md](.mimocode/skills/laya-cli/SKILL.md) | Changing the CLI |
 | [.mimocode/skills/laya-mcp/SKILL.md](.mimocode/skills/laya-mcp/SKILL.md) | Changing the MCP server / agent integration |
 | [.mimocode/skills/laya-deploy/SKILL.md](.mimocode/skills/laya-deploy/SKILL.md) | Changing deploy server or ps1/sh scripts |
-| [docs/deploy.md](docs/deploy.md) | One-click deploy, port 7400, stop/verify |
+| [docs/deploy.md](docs/deploy.md) | One-click deploy, Port 7710, stop/verify |
 | [docs/jev-migration.md](docs/jev-migration.md) | Moving callers off JEV |
 
 ## Editing instructions

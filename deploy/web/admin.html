@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Laya 管理后台</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #171d24;
+      --border: #2a3440;
+      --text: #e7eef7;
+      --muted: #8b9bb0;
+      --accent: #3d8bfd;
+      --ok: #3ecf8e;
+      --warn: #f0b429;
+      --bad: #f07178;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.5 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--panel);
+      position: sticky; top: 0; z-index: 2;
+    }
+    h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: .02em; }
+    .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+      padding: 8px 12px; cursor: pointer; font-weight: 600;
+    }
+    button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    button:disabled { opacity: .5; cursor: wait; }
+    main { padding: 20px; display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    .label { color: var(--muted); font-size: 12px; }
+    .value { font-size: 28px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .value.small { font-size: 16px; font-weight: 600; word-break: break-all; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      background: #203040; color: var(--accent); font-family: var(--mono); font-size: 11px;
+    }
+    .bar-wrap { margin-top: 8px; }
+    .bar-row { display: grid; grid-template-columns: 120px 1fr 48px; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .bar { height: 8px; background: #243040; border-radius: 999px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: var(--accent); }
+    .muted { color: var(--muted); }
+    .msg { margin-top: 8px; font-size: 12px; min-height: 1.2em; }
+    @media (max-width: 960px) {
+      .span-3, .span-4, .span-6, .span-8 { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Laya 管理后台</h1>
+      <div class="sub">System 1 决策模型 · 监控 / 热更新 / 配置</div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="btnRefresh">刷新</button>
+      <button class="ghost" id="btnCheckUpdate">检查更新</button>
+      <button id="btnReload">热更新</button>
+      <button class="ghost" id="btnToggleAuto">切换自动更新</button>
+    </div>
+  </header>
+  <main>
+    <section class="card span-3">
+      <div class="label">服务状态</div>
+      <div class="value" id="status">-</div>
+      <div class="sub" id="statusMeta"></div>
+    </section>
+    <section class="card span-3">
+      <div class="label">版本 / 引擎</div>
+      <div class="value small" id="version">-</div>
+      <div class="sub" id="engine"></div>
+    </section>
+    <section class="card span-3">
+      <div class="label">监听地址</div>
+      <div class="value small" id="addr">-</div>
+      <div class="sub" id="pid"></div>
+    </section>
+    <section class="card span-3">
+      <div class="label">自动更新</div>
+      <div class="value small" id="autoUpdate">-</div>
+      <div class="sub" id="updateMeta"></div>
+    </section>
+
+    <section class="card span-4">
+      <h2>决策流量</h2>
+      <div class="label">累计 decide</div>
+      <div class="value" id="totalDecides">0</div>
+      <div class="bar-wrap">
+        <div class="label">平均延迟 (μs)</div>
+        <div class="value small" id="avgLatency">0</div>
+      </div>
+    </section>
+
+    <section class="card span-4">
+      <h2>模型调用分布</h2>
+      <div id="modelBars" class="muted">暂无数据</div>
+    </section>
+
+    <section class="card span-4">
+      <h2>Top Pattern</h2>
+      <div id="patternBars" class="muted">暂无数据</div>
+    </section>
+
+    <section class="card span-6">
+      <h2>模型注册表</h2>
+      <div id="models">-</div>
+      <div class="msg muted" id="modelsSource"></div>
+    </section>
+
+    <section class="card span-6">
+      <h2>最近决策</h2>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr><th>时间</th><th>模型</th><th>Top</th><th>概率</th><th>延迟</th></tr>
+          </thead>
+          <tbody id="recentBody">
+            <tr><td colspan="5" class="muted">暂无</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card span-12">
+      <div class="msg" id="message"></div>
+      <div class="sub">数据接口：<span class="tag">/admin/api/overview</span>
+        <span class="tag">/deploy/update/check</span>
+        <span class="tag">POST /admin/api/reload</span>
+        <span class="tag">POST /deploy/config</span>
+      </div>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    function setMsg(text, bad) {
+      const el = $("message");
+      el.textContent = text || "";
+      el.className = "msg " + (bad ? "bad" : "ok");
+    }
+    function fmtTime(s) {
+      try { return new Date(s).toLocaleTimeString(); } catch { return s; }
+    }
+    function bars(map) {
+      const entries = Object.entries(map || {});
+      if (!entries.length) return '<div class="muted">暂无数据</div>';
+      entries.sort((a, b) => b[1] - a[1]);
+      const max = entries[0][1] || 1;
+      return entries.slice(0, 8).map(([k, v]) => {
+        const pct = Math.max(4, Math.round(v / max * 100));
+        return `<div class="bar-row"><div class="tag">${k}</div><div class="bar"><i style="width:${pct}%"></i></div><div class="muted">${v}</div></div>`;
+      }).join("");
+    }
+    async function jget(url) {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(url + " -> HTTP " + r.status);
+      return r.json();
+    }
+    async function jpost(url, body) {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: body ? JSON.stringify(body) : "{}"
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || (url + " -> HTTP " + r.status));
+      return data;
+    }
+    function renderOverview(o) {
+      const st = o.status || {};
+      const met = o.metrics || {};
+      const upd = o.update || {};
+      const cfg = o.config || {};
+      const au = (cfg.auto_update || {});
+      $("status").textContent = st.status || "-";
+      $("status").className = "value " + (st.status === "ok" ? "ok" : "bad");
+      $("statusMeta").textContent = (st.running_as_service ? "Windows 服务" : "前台进程") + " · uptime " + Math.round(st.uptime_sec || 0) + "s";
+      $("version").textContent = (st.version || "-") + " / " + (st.engine_ver || st.engine || "-");
+      $("engine").textContent = st.engine || "";
+      $("addr").textContent = st.addr || "-";
+      $("pid").textContent = "PID " + (st.pid || "-");
+      $("autoUpdate").textContent = au.enabled ? (au.auto_apply ? "开 · 自动应用" : "开 · 仅检查") : "关";
+      $("autoUpdate").className = "value small " + (au.enabled ? "ok" : "warn");
+      $("updateMeta").textContent = upd.latest_version
+        ? ("latest " + upd.latest_version + (upd.update_available ? " · 有新版本" : " · 已是最新"))
+        : (upd.message || ("interval " + (au.interval_minutes || 0) + "m"));
+      $("totalDecides").textContent = met.total_decides || 0;
+      $("avgLatency").textContent = (met.avg_latency_us || 0).toFixed(1);
+      $("modelBars").innerHTML = bars(met.by_model);
+      $("patternBars").innerHTML = bars(met.by_pattern);
+      const models = o.models || [];
+      if (models.length) {
+        $("models").innerHTML = models.map(m => `
+          <div style="margin-bottom:10px">
+            <div><span class="tag">${m.id}</span> <span class="muted">${m.description || ""}</span></div>
+            <div class="sub">latency_budget=${m.max_latency_ms}ms · patterns=${(m.patterns || []).join(", ")}</div>
+          </div>`).join("");
+      } else {
+        $("models").textContent = "-";
+      }
+      $("modelsSource").textContent = o.models_source ? ("模型 overlay: " + o.models_source) : "使用内置模型（无 overlay）";
+      const recent = met.recent || [];
+      $("recentBody").innerHTML = recent.length ? recent.slice(0, 20).map(ev => `
+        <tr>
+          <td>${fmtTime(ev.at)}</td>
+          <td>${ev.model || ""}</td>
+          <td><span class="tag">${ev.top || ""}</span></td>
+          <td>${(ev.probability || 0).toFixed(4)}</td>
+          <td>${ev.latency_us || 0}μs</td>
+        </tr>`).join("") : '<tr><td colspan="5" class="muted">暂无</td></tr>';
+    }
+    async function refresh() {
+      try {
+        const o = await jget("/admin/api/overview");
+        renderOverview(o);
+        setMsg("");
+      } catch (e) {
+        setMsg(String(e), true);
+      }
+    }
+    $("btnRefresh").onclick = refresh;
+    $("btnReload").onclick = async () => {
+      const btn = $("btnReload"); btn.disabled = true;
+      try {
+        const r = await jpost("/admin/api/reload", {});
+        setMsg("热更新完成：models=" + (r.models || 0) + " config=" + (r.config_path || "") + " overlay=" + (r.models_source || "none"));
+        await refresh();
+      } catch (e) { setMsg(String(e), true); }
+      btn.disabled = false;
+    };
+    $("btnCheckUpdate").onclick = async () => {
+      try {
+        const u = await jget("/deploy/update/check");
+        setMsg("检查更新：current=" + u.current_version + " latest=" + (u.latest_version || "-") + " available=" + !!u.update_available);
+        await refresh();
+      } catch (e) { setMsg(String(e), true); }
+    };
+    $("btnToggleAuto").onclick = async () => {
+      try {
+        const cur = await jget("/deploy/config");
+        const au = Object.assign({ enabled: true, auto_apply: true, interval_minutes: 360, repo: "neko233-com/laya-go", prerelease: false }, cur.auto_update || {});
+        const nextEnabled = !au.enabled;
+        const body = { auto_update: Object.assign({}, au, { enabled: nextEnabled, auto_apply: nextEnabled ? au.auto_apply : false }) };
+        await jpost("/deploy/config", body);
+        setMsg(nextEnabled ? "自动更新已打开" : "自动更新已关闭");
+        await refresh();
+      } catch (e) { setMsg(String(e), true); }
+    };
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>

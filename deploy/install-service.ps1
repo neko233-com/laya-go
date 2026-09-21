@@ -1,17 +1,17 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Install laya-deploy as a Windows service (default port 7400) with optional auto-update.
+  Install laya-deploy as a Windows service (default Port 7710) with optional auto-update.
 
 .EXAMPLE
   .\deploy\install-service.ps1
-  .\deploy\install-service.ps1 -Port 7400 -AutoUpdate:$false
+  .\deploy\install-service.ps1 -Port 7710 -AutoUpdate:$false
   .\deploy\install-service.ps1 -AutoApply:$false -IntervalMinutes 720
 #>
 [CmdletBinding()]
 param(
-    [int]$Port = 7400,
-    [string]$Bind = "127.0.0.1",
+    [int]$Port = 7710,
+    [string]$Bind = "0.0.0.0",
     [string]$ServiceName = "LayaDeploy",
     [string]$InstallDir = "$env:ProgramData\Laya",
     [string]$Repo = "neko233-com/laya-go",
@@ -131,6 +131,24 @@ Write-Step "starting $ServiceName"
 Start-Service -Name $ServiceName
 Start-Sleep -Seconds 1
 
+# Allow LAN inbound on the listen port (Windows Firewall).
+if ($Bind -eq "0.0.0.0" -or $Bind -eq "+") {
+    Write-Step "ensuring firewall allow rule for TCP $Port"
+    $ruleName = "LayaDeploy-TCP-$Port"
+    $existing = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+    if (-not $existing) {
+        New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -Profile Any -ErrorAction SilentlyContinue | Out-Null
+        if ($LASTEXITCODE -ne 0 -and -not (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue)) {
+            & netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=$Port | Out-Null
+        }
+    }
+}
+
+$lanIPs = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+    Select-Object -ExpandProperty IPAddress -Unique)
+$listenUrl = if ($Bind -eq "0.0.0.0") { "http://127.0.0.1:$Port" } else { $url }
+
 $healthUrl = "$url/health"
 $statusUrl = "$url/deploy/status"
 $configApi = "$url/deploy/config"
@@ -160,7 +178,9 @@ Write-Host "  Display      : $display"
 Write-Host "  Install dir  : $InstallDir"
 Write-Host "  Executable   : $exePath"
 Write-Host "  Config       : $configPath"
-Write-Host "  URL          : $url"
+Write-Host "  Listen       : $addr"
+Write-Host "  Local URL    : $listenUrl"
+Write-Host "  LAN URLs     : $(if ($lanIPs) { ($lanIPs | ForEach-Object { "http://{0}:$Port" -f $_ }) -join ', ' } else { '(none detected)' })"
 Write-Host "  PID          : $($ok.pid)"
 Write-Host "  Version      : $($ok.version)"
 Write-Host "  Auto update  : enabled=$AutoUpdate auto_apply=$AutoApply interval_min=$IntervalMinutes"
@@ -170,9 +190,13 @@ Write-Host "  Status       : $statusUrl"
 Write-Host "  Config API   : $configApi"
 Write-Host "  Update check : $updateCheck"
 Write-Host ""
-Write-Host "Agent env:"
-Write-Host "  `$env:LAYA_URL = '$url'"
+Write-Host "Agent env (local):"
+Write-Host "  `$env:LAYA_URL = '$listenUrl'"
+Write-Host "Agent env (LAN peers):"
+Write-Host "  `$env:LAYA_URL = 'http://<this-host-ip>:$Port'"
 Write-Host "  `$env:LAYA_CONFIG = '$configPath'"
+Write-Host ""
+Write-Host "WARNING: bind $Bind + no auth = LAN-open decision API. Firewall/trust boundary is yours."
 Write-Host ""
 Write-Host "Toggle auto-update (no restart needed for the flag):"
 Write-Host "  Invoke-RestMethod -Method Post $configApi -ContentType application/json -Body '{\"auto_update\":{\"enabled\":false,\"auto_apply\":false,\"interval_minutes\":360,\"repo\":\"$Repo\",\"prerelease\":false}}'"

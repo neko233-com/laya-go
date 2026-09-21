@@ -37,34 +37,34 @@ go build -o bin/laya-mcp ./mcp
 ./bin/laya decide --feature intent_change=0.9 --feature target_known=0.8 --top-k 3
 ```
 
-### One-click deploy (port 7400)
+### One-click deploy (Port 7710)
 
 Deploy server is written in Go (`deploy/`) and hosts the Laya model API plus `/deploy/status`.
 
 ```powershell
-.\deploy\deploy.ps1 -Port 7400
+.\deploy\deploy.ps1 -Port 7710
 ```
 
 ```sh
-./deploy/deploy.sh --port 7400
+./deploy/deploy.sh --Port 7710
 ```
 
-Client base URL after deploy: `http://127.0.0.1:7400` (`LAYA_URL`). Details: [`docs/deploy.md`](docs/deploy.md).
+Client base URL after deploy: `http://127.0.0.1:7710` (`LAYA_URL`). Details: [`docs/deploy.md`](docs/deploy.md).
 
-### Windows service + auto-update (port 7400)
+### Windows service + auto-update (Port 7710)
 
 ```powershell
 # Administrator PowerShell
-.\deploy\install-service.ps1 -Port 7400
+.\deploy\install-service.ps1 -Port 7710
 ```
 
 Service `LayaDeploy` installs to `%ProgramData%\Laya` with `config.json`. Auto-update is toggleable:
 
 ```powershell
 # turn off
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 # turn on
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 ```
 
 Publish updates for auto-update: `.\deploy\publish-release.ps1 -Tag vX.Y.Z`.
@@ -73,11 +73,11 @@ Publish updates for auto-update: `.\deploy\publish-release.ps1 -Tag vX.Y.Z`.
 
 | Variable | Component | Default |
 | --- | --- | --- |
-| `LAYA_ADDR` | server | `127.0.0.1:7710` |
-| `LAYA_URL` | cli / mcp / deploy | `http://127.0.0.1:7400` after deploy |
+| `LAYA_ADDR` | server / deploy | `0.0.0.0:7710` |
+| `LAYA_URL` | cli / mcp | `http://<host-ip>:7710` or `http://127.0.0.1:7710` |
 | `LAYA_CONFIG` | laya-deploy | `%ProgramData%\Laya\config.json` |
 
-No API keys are required for local open-source usage.
+No API keys are required for local open-source usage. Default listen is `0.0.0.0:7710` for LAN clients. **There is no auth** — keep the host on a trusted network or firewall Port 7710.
 
 ## Replace JEV
 

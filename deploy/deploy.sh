@@ -2,19 +2,19 @@
 # One-click Laya deploy (Linux / macOS): Go deploy server + model service.
 set -euo pipefail
 
-PORT=7400
-BIND="127.0.0.1"
+PORT=7710
+BIND="0.0.0.0"
 SKIP_TESTS=0
 FOREGROUND=0
 
 usage() {
   cat <<'EOF'
-Usage: deploy/deploy.sh [--port 7400] [--bind 127.0.0.1] [--skip-tests] [--foreground]
+Usage: deploy/deploy.sh [--Port 7710] [--bind 127.0.0.1] [--skip-tests] [--foreground]
 
 Builds bin/laya-deploy, bin/laya, bin/laya-mcp, starts laya-deploy on PORT,
 waits for /health and /deploy/status.
 
-Env for clients: LAYA_URL=http://127.0.0.1:7400
+Env for clients: LAYA_URL=http://127.0.0.1:7710
 EOF
 }
 

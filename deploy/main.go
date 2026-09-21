@@ -1,11 +1,12 @@
 // Command laya-deploy is a Go deployment server that hosts the Laya model API.
 //
-// It embeds the System 1 decision handlers, adds ops endpoints, can run as a
-// Windows service, and supports optional GitHub-release auto-update.
+// It embeds System 1 decision handlers, ops endpoints, a web admin dashboard,
+// metrics, hot reload, Windows service mode, and optional GitHub auto-update.
 package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
@@ -20,8 +22,12 @@ import (
 
 	"github.com/neko233-com/laya-go/internal/engine"
 	"github.com/neko233-com/laya-go/internal/httpserver"
+	"github.com/neko233-com/laya-go/internal/metrics"
 	"github.com/neko233-com/laya-go/internal/version"
 )
+
+//go:embed web/admin.html
+var adminHTML []byte
 
 type deployStatus struct {
 	Status          string  `json:"status"`
@@ -41,13 +47,16 @@ type deployStatus struct {
 	Executable      string  `json:"executable"`
 	WorkDir         string  `json:"workdir"`
 	ConfigPath      string  `json:"config_path"`
+	ModelsOverlay   string  `json:"models_overlay,omitempty"`
 	ServiceName     string  `json:"service_name,omitempty"`
 	RunningAsSvc    bool    `json:"running_as_service"`
 	HealthPath      string  `json:"health_path"`
 	DecidePath      string  `json:"decide_path"`
 	ModelsPath      string  `json:"models_path"`
+	AdminPath       string  `json:"admin_path"`
 	UpdateCheckPath string  `json:"update_check_path"`
 	ConfigAPIPath   string  `json:"config_path_api"`
+	TotalDecides    int64   `json:"total_decides"`
 }
 
 type configPatch struct {
@@ -56,7 +65,7 @@ type configPatch struct {
 }
 
 func main() {
-	port := flag.Int("port", 7400, "listen port (ignored if config/addr provides one and flag left default)")
+	port := flag.Int("port", 7710, "listen port (used when addr empty and config empty)")
 	addrFlag := flag.String("addr", "", "full listen address (overrides config and -port)")
 	configFlag := flag.String("config", "", "config file path")
 	serviceFlag := flag.Bool("service", false, "run as Windows service (also auto-detected under SCM)")
@@ -68,11 +77,10 @@ func main() {
 	}
 	cfg := loadConfig(cfgPath)
 
-	// CLI overrides.
 	if *addrFlag != "" {
 		cfg.Addr = *addrFlag
 	} else if flagUsed("port") || cfg.Addr == "" {
-		cfg.Addr = fmt.Sprintf("127.0.0.1:%d", *port)
+		cfg.Addr = fmt.Sprintf("0.0.0.0:%d", *port)
 	}
 
 	exe, _ := os.Executable()
@@ -83,7 +91,7 @@ func main() {
 	}
 
 	if *serviceFlag || isWindowsService() {
-		log.Printf("starting as Windows service name=%s addr=%s", "LayaDeploy", cfg.Addr)
+		log.Printf("starting as Windows service name=LayaDeploy addr=%s", cfg.Addr)
 		if err := runWindowsService(run); err != nil {
 			log.Fatalf("service: %v", err)
 		}
@@ -107,6 +115,13 @@ func flagUsed(name string) bool {
 	return found
 }
 
+func modelsOverlayPath(configPath string) string {
+	if configPath == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(configPath), "models.json")
+}
+
 func runServer(ctx context.Context, cfg Config, exe string) error {
 	started := time.Now()
 	if exe == "" {
@@ -114,7 +129,16 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 	}
 	wd, _ := os.Getwd()
 	reg := engine.NewRegistry()
+	modelsPath := modelsOverlayPath(cfg.ConfigPath)
+	if modelsPath != "" {
+		if err := reg.ReloadFromJSON(modelsPath); err != nil {
+			log.Printf("models overlay load failed: %v", err)
+		}
+	}
+
+	met := metrics.New(100)
 	laya := httpserver.New(reg)
+	laya.SetRecorder(met)
 
 	var cfgMu sync.RWMutex
 	cur := cfg
@@ -135,11 +159,11 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 	mux.Handle("/health", laya.Handler())
 	mux.Handle("/v1/", laya.Handler())
 
-	mux.HandleFunc("GET /deploy/status", func(w http.ResponseWriter, _ *http.Request) {
+	statusFn := func() deployStatus {
 		cfgMu.RLock()
 		c := cur
 		cfgMu.RUnlock()
-		writeJSON(w, http.StatusOK, deployStatus{
+		return deployStatus{
 			Status:          "ok",
 			Role:            "laya-deploy",
 			Version:         version.Version,
@@ -157,14 +181,21 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 			Executable:      exe,
 			WorkDir:         wd,
 			ConfigPath:      c.ConfigPath,
+			ModelsOverlay:   reg.Source(),
 			ServiceName:     svcName,
 			RunningAsSvc:    asSvc,
 			HealthPath:      "/health",
 			DecidePath:      "/v1/decide",
 			ModelsPath:      "/v1/models",
+			AdminPath:       "/admin",
 			UpdateCheckPath: "/deploy/update/check",
 			ConfigAPIPath:   "/deploy/config",
-		})
+			TotalDecides:    met.Total(),
+		}
+	}
+
+	mux.HandleFunc("GET /deploy/status", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, statusFn())
 	})
 
 	mux.HandleFunc("GET /deploy/update/check", func(w http.ResponseWriter, r *http.Request) {
@@ -197,9 +228,7 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 		cfgMu.RLock()
 		c := cur
 		cfgMu.RUnlock()
-		out := c
-		out.ConfigPath = c.ConfigPath
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, c)
 	})
 
 	mux.HandleFunc("POST /deploy/config", func(w http.ResponseWriter, r *http.Request) {
@@ -232,10 +261,99 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 				return
 			}
 		}
-		// Note: addr changes require restart; auto_update toggles apply immediately.
 		writeJSON(w, http.StatusOK, map[string]any{
 			"config": next,
 			"note":   "auto_update toggles apply immediately; addr change requires service restart",
+		})
+	})
+
+	mux.HandleFunc("POST /deploy/reload", func(w http.ResponseWriter, _ *http.Request) {
+		cfgMu.Lock()
+		path := cur.ConfigPath
+		cfgMu.Unlock()
+		fresh := loadConfig(path)
+		if path != "" && fileExists(path) {
+			cfgMu.Lock()
+			// keep listen addr unless file has one; reload auto_update + other fields
+			addr := cur.Addr
+			if fresh.Addr != "" {
+				addr = fresh.Addr
+			}
+			fresh.Addr = addr
+			fresh.ConfigPath = path
+			cur = fresh
+			cfgMu.Unlock()
+			upd.setConfig(fresh)
+		}
+		modelsPath := modelsOverlayPath(path)
+		err := reg.ReloadFromJSON(modelsPath)
+		if err != nil {
+			writeErrJSON(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status":        "ok",
+			"models":        reg.Count(),
+			"models_source": reg.Source(),
+			"config_path":   path,
+			"addr":          fresh.Addr,
+			"auto_update":   fresh.AutoUpdate,
+		})
+	})
+
+	mux.HandleFunc("GET /admin/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/admin" && r.URL.Path != "/admin/" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(adminHTML)
+	})
+
+	mux.HandleFunc("GET /admin/api/overview", func(w http.ResponseWriter, _ *http.Request) {
+		updSnap, _ := upd.snapshot()
+		cfgMu.RLock()
+		c := cur
+		cfgMu.RUnlock()
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status":        statusFn(),
+			"metrics":       met.Snapshot(),
+			"models":        reg.List(),
+			"models_source": reg.Source(),
+			"config":        c,
+			"update":        updSnap,
+		})
+	})
+
+	mux.HandleFunc("POST /admin/api/reload", func(w http.ResponseWriter, _ *http.Request) {
+		cfgMu.Lock()
+		path := cur.ConfigPath
+		cfgMu.Unlock()
+		fresh := loadConfig(path)
+		if path != "" && fileExists(path) {
+			cfgMu.Lock()
+			addr := cur.Addr
+			if fresh.Addr != "" {
+				addr = fresh.Addr
+			}
+			fresh.Addr = addr
+			fresh.ConfigPath = path
+			cur = fresh
+			cfgMu.Unlock()
+			upd.setConfig(fresh)
+		}
+		modelsPath := modelsOverlayPath(path)
+		if err := reg.ReloadFromJSON(modelsPath); err != nil {
+			writeErrJSON(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status":        "ok",
+			"models":        reg.Count(),
+			"models_source": reg.Source(),
+			"config_path":   path,
+			"auto_update":   fresh.AutoUpdate,
 		})
 	})
 
@@ -254,9 +372,13 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 				"POST /v1/jev/decide",
 				"POST /v1/predict",
 				"POST /v1/explain",
+				"GET /admin",
+				"GET /admin/api/overview",
+				"POST /admin/api/reload",
 				"GET /deploy/status",
 				"GET /deploy/config",
 				"POST /deploy/config",
+				"POST /deploy/reload",
 				"GET /deploy/update/check",
 				"GET /deploy/update/status",
 				"POST /deploy/update/apply",
@@ -272,7 +394,7 @@ func runServer(ctx context.Context, cfg Config, exe string) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("laya-deploy listening on http://%s engine=%s models=%d version=%s auto_update=%v service=%v",
+		log.Printf("laya-deploy listening on http://%s engine=%s models=%d version=%s auto_update=%v service=%v admin=/admin",
 			cur.Addr, engine.EngineName, reg.Count(), version.Version, cur.AutoUpdate.Enabled, asSvc)
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- err

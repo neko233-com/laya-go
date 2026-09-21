@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", envOrDefault("LAYA_ADDR", "127.0.0.1:7710"), "listen address")
+	addr := flag.String("addr", envOrDefault("LAYA_ADDR", "0.0.0.0:7710"), "listen address")
 	flag.Parse()
 
 	srv := httpserver.New(engine.NewRegistry())

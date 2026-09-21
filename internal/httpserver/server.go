@@ -9,16 +9,23 @@ import (
 
 	"github.com/neko233-com/laya-go/internal/apitypes"
 	"github.com/neko233-com/laya-go/internal/engine"
+	"github.com/neko233-com/laya-go/internal/metrics"
 	"github.com/neko233-com/laya-go/internal/version"
 )
 
 // Version is the service version string.
 var Version = version.Version
 
+// DecisionRecorder receives decide telemetry. Optional.
+type DecisionRecorder interface {
+	Record(ev metrics.Event)
+}
+
 // Server is the Laya HTTP server.
 type Server struct {
 	registry *engine.Registry
 	mux      *http.ServeMux
+	recorder DecisionRecorder
 }
 
 // New builds a server with routes.
@@ -35,6 +42,9 @@ func New(reg *engine.Registry) *Server {
 	s.mux.HandleFunc("POST /v1/explain", s.handleExplain)
 	return s
 }
+
+// SetRecorder attaches decision telemetry.
+func (s *Server) SetRecorder(r DecisionRecorder) { s.recorder = r }
 
 // Handler returns the root handler.
 func (s *Server) Handler() http.Handler { return s.mux }
@@ -90,6 +100,23 @@ func (s *Server) decide(w http.ResponseWriter, r *http.Request, jev bool) {
 	if jev {
 		out.CompatLayer = "jev"
 		out.Model = res.Model
+	}
+	if s.recorder != nil {
+		top := res.Top()
+		path := "/v1/decide"
+		if jev {
+			path = "/v1/jev/decide"
+		}
+		s.recorder.Record(metrics.Event{
+			At:             time.Now(),
+			Model:          res.Model,
+			Top:            top.ID,
+			Probability:    top.Probability,
+			LatencyUS:      res.LatencyUS,
+			CandidateCount: len(res.Candidates),
+			Compat:         out.CompatLayer,
+			Path:           path,
+		})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -192,7 +219,7 @@ func writeErr(w http.ResponseWriter, code int, msg string) {
 // AddrLabel normalizes listen address for logs.
 func AddrLabel(addr string) string {
 	if strings.TrimSpace(addr) == "" {
-		return "127.0.0.1:7710"
+		return "0.0.0.0:7710"
 	}
 	return addr
 }

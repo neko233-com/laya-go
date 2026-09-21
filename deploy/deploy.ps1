@@ -5,16 +5,16 @@
 
 .DESCRIPTION
   Builds laya-deploy / laya / laya-mcp, starts laya-deploy on the given port
-  (default 7400), and waits until /health and /deploy/status are ok.
+  (default 7710), and waits until /health and /deploy/status are ok.
 
 .EXAMPLE
   .\deploy\deploy.ps1
-  .\deploy\deploy.ps1 -Port 7400 -SkipTests
+  .\deploy\deploy.ps1 -Port 7710 -SkipTests
 #>
 [CmdletBinding()]
 param(
-    [int]$Port = 7400,
-    [string]$Bind = "127.0.0.1",
+    [int]$Port = 7710,
+    [string]$Bind = "0.0.0.0",
     [switch]$SkipTests,
     [switch]$Foreground
 )

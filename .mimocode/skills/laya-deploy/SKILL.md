@@ -1,6 +1,6 @@
 ---
 name: laya-deploy
-description: Use when changing laya-go deployment (deploy/*.go/ps1/sh), Windows service LayaDeploy, port 7400, config, or GitHub auto-update. Covers build, service lifecycle, update check/apply, and ops status.
+description: Use when changing laya-go deployment (deploy/*.go/ps1/sh), Windows service LayaDeploy, Port 7710, config, or GitHub auto-update. Covers build, service lifecycle, update check/apply, and ops status.
 whenToUse: Any request that modifies deploy server code, install/uninstall scripts, service registration, auto-update, or local deployment procedure for Laya.
 user-invocable: true
 ---
@@ -13,7 +13,7 @@ This skill is guidance, not a replacement for repository rules. Read [AGENTS.md]
 
 1. `deploy/main.go` embeds `internal/httpserver` handlers; model math stays in `internal/engine`.
 2. Version is owned by [internal/version/version.go](../../../internal/version/version.go). Auto-update compares GitHub tags to this value.
-3. Windows service name is `LayaDeploy`. Install layout is `%ProgramData%\Laya` with `config.json`.
+3. Windows service name is `LayaDeploy`. Install layout is `%ProgramData%\Laya` with `config.json`. Default bind is `0.0.0.0:7710` for LAN; no auth — document firewall responsibility.
 4. Auto-update is toggled in config (`auto_update.enabled` / `auto_apply`) and via `POST /deploy/config`.
 
 ## Implement
@@ -29,15 +29,15 @@ This skill is guidance, not a replacement for repository rules. Read [AGENTS.md]
 ```powershell
 go test ./...
 go build -o bin\laya-deploy.exe .\deploy
-.\deploy\install-service.ps1 -Port 7400
+.\deploy\install-service.ps1 -Port 7710
 Get-Service LayaDeploy
-curl.exe -s http://127.0.0.1:7400/deploy/status
-curl.exe -s http://127.0.0.1:7400/deploy/update/check
-Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+curl.exe -s http://127.0.0.1:7710/deploy/status
+curl.exe -s http://127.0.0.1:7710/deploy/update/check
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 ```
 
 ```sh
-./deploy/deploy.sh --port 7400
+./deploy/deploy.sh --Port 7710
 ```
 
 Update [docs/deploy.md](../../../docs/deploy.md) when service names, ports, config fields, or update asset names change.
