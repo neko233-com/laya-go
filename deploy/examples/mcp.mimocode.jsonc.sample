@@ -1,3 +1,15 @@
 {
-  "mcpServers-placeholder": true
+  "$schema": "https://mimo.xiaomi.com/mimocode/config.json",
+  "mcp": {
+    "laya": {
+      "type": "local",
+      "command": [
+        "C:\\ProgramData\\Laya\\laya-mcp.exe"
+      ],
+      "environment": {
+        "LAYA_URL": "http://127.0.0.1:7710"
+      },
+      "enabled": true
+    }
+  }
 }

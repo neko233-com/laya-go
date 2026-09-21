@@ -76,6 +76,7 @@ Smoke:
 | [.mimocode/skills/laya-mcp/SKILL.md](.mimocode/skills/laya-mcp/SKILL.md) | Changing the MCP server / agent integration |
 | [.mimocode/skills/laya-deploy/SKILL.md](.mimocode/skills/laya-deploy/SKILL.md) | Changing deploy server or ps1/sh scripts |
 | [docs/deploy.md](docs/deploy.md) | One-click deploy, Port 7710, stop/verify |
+| [docs/agent-integration.md](docs/agent-integration.md) | Codex / Claude / MiMo / HTTP / CLI agent 接入 |
 | [docs/jev-migration.md](docs/jev-migration.md) | Moving callers off JEV |
 
 ## Editing instructions

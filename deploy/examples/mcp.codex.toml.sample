@@ -1,0 +1,14 @@
+# Codex CLI MCP sample for Laya
+# Merge into %USERPROFILE%\.codex\config.toml (Windows) or ~/.codex/config.toml
+# Replace command path if laya-mcp was copied elsewhere.
+
+[mcp_servers.laya]
+command = "C:\\ProgramData\\Laya\\laya-mcp.exe"
+env = { LAYA_URL = "http://127.0.0.1:7710" }
+
+# LAN example (agent laptop, server on another host):
+# env = { LAYA_URL = "http://laya-host:7710" }
+
+# WSL2 Codex talking to Windows service on localhost via mirrored networking:
+# command = "/mnt/c/ProgramData/Laya/laya-mcp.exe"
+# env = { LAYA_URL = "http://127.0.0.1:7710" }

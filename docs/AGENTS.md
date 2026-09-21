@@ -7,7 +7,7 @@
 | 层 | 职责 | 不属于这里 |
 | --- | --- | --- |
 | 根 `AGENTS.md` | 会话级全局规则：布局、命令、硬约束 | 细节流程、API 字段表 |
-| `docs/*.md` 长期文档 | 跨组件约定：architecture / api / development / jev-migration | 一次性任务记录 |
+| `docs/*.md` 长期文档 | 跨组件约定：architecture / api / development / jev-migration / agent-integration | 一次性任务记录 |
 | `docs/archive/` | 任务交接、验证快照、冻结历史 | 当前行为描述 |
 | 组件 `server/cli/mcp/README.md` | 该组件用户契约：能力、启动、配置 | 全局规则、其他组件 |
 | `.mimocode/skills/*` | Agent 工作流：何时改哪、如何验证 | 用户安装说明 |

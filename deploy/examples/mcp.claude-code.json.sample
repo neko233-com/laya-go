@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "laya": {
+      "command": "C:\\ProgramData\\Laya\\laya-mcp.exe",
+      "env": {
+        "LAYA_URL": "http://127.0.0.1:7710"
+      }
+    }
+  }
+}

@@ -67,6 +67,8 @@ Tool rename map:
 
 Set `"jev_compat": true` in `laya_decide` arguments only while legacy semantics are still required.
 
+Full agent integration (Codex CLI, Claude Code, MiMo, HTTP, CLI): [agent-integration.md](agent-integration.md).
+
 ## Action name mapping starters
 
 | Legacy intent | Laya pattern ID |

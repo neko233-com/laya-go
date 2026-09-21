@@ -91,7 +91,8 @@ laya decide --model laya-base --feature blocked=1 --feature ambiguity=0.5
 
 MCP tool rename: `jev decide` → `laya_decide` (optional `jev_compat: true` during cutover).
 
-Full mapping: [`docs/jev-migration.md`](docs/jev-migration.md).
+Full mapping: [`docs/jev-migration.md`](docs/jev-migration.md).  
+External agents (Codex / Claude Code / MiMo / HTTP / CLI): [`docs/agent-integration.md`](docs/agent-integration.md).
 
 ## API quick look
 

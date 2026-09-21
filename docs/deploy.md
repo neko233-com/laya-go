@@ -137,4 +137,4 @@ LAYA_CONFIG=C:\ProgramData\Laya\config.json
 - Deploy API has no auth; bind to loopback unless a gateway is in front.
 - Ad-hoc `deploy.ps1` process and the Windows service must not fight on Port 7710; install script stops stray processes first.
 
-Related: [api.md](api.md), [development.md](development.md), [architecture.md](architecture.md).
+Related: [api.md](api.md), [development.md](development.md), [architecture.md](architecture.md), [agent-integration.md](agent-integration.md).

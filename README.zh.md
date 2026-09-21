@@ -91,7 +91,8 @@ laya decide --model laya-base --feature blocked=1 --feature ambiguity=0.5
 
 MCP 工具更名：`jev decide` → `laya_decide`（切换期可传 `jev_compat: true`）。
 
-完整对照：[`docs/jev-migration.md`](docs/jev-migration.md)。
+完整对照：[`docs/jev-migration.md`](docs/jev-migration.md)。  
+外部 Agent（Codex / Claude Code / MiMo / HTTP / CLI）接入：[`docs/agent-integration.md`](docs/agent-integration.md)。
 
 ## API 速览
 
