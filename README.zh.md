@@ -20,7 +20,7 @@
 | [`server/`](server/) | `laya-server` | HTTP 决策服务 |
 | [`cli/`](cli/) | `laya` | Agent 侧 CLI |
 | [`mcp/`](mcp/) | `laya-mcp` | 给 AI Agent 的 MCP 工具 |
-| [`deploy/`](deploy/) | `laya-deploy` | Go 部署服务器 + ps1/sh 一键部署 |
+| [`deploy/`](deploy/) | `laya-deploy` | Go 部署服务器 + Windows 服务 + 自动更新 + ps1/sh |
 
 引擎与客户端在 `internal/`。长期文档见 [`docs/`](docs/)。
 
@@ -51,12 +51,31 @@ go build -o bin/laya-mcp ./mcp
 
 部署后客户端地址：`http://127.0.0.1:7400`（`LAYA_URL`）。说明见 [`docs/deploy.md`](docs/deploy.md)。
 
+### Windows 服务 + 自动更新（端口 7400）
+
+```powershell
+# 管理员 PowerShell
+.\deploy\install-service.ps1 -Port 7400
+```
+
+服务名 `LayaDeploy`，安装目录 `%ProgramData%\Laya`，配置 `config.json`。自动更新可开关：
+
+```powershell
+# 关闭自动更新
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+# 打开自动更新
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+```
+
+发版给自动更新用：`.\deploy\publish-release.ps1 -Tag vX.Y.Z`。
+
 ## 配置
 
 | 环境变量 | 组件 | 默认值 |
 | --- | --- | --- |
 | `LAYA_ADDR` | server | `127.0.0.1:7710` |
-| `LAYA_URL` | cli / mcp | `http://127.0.0.1:7710` |
+| `LAYA_URL` | cli / mcp / deploy | `http://127.0.0.1:7400`（部署后） |
+| `LAYA_CONFIG` | laya-deploy | `%ProgramData%\Laya\config.json` |
 
 本地开源使用不需要 API Key。
 

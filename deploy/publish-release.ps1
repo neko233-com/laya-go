@@ -64,14 +64,15 @@ $targets = @(
 )
 
 if ($Goos -ne "windows") {
-    foreach ($t in $targets) { $t.out = $t.out -replace '\.exe$', '' }
+    foreach ($t in $targets) { $t["out"] = $t["out"] -replace '\.exe$', '' }
 }
 
 foreach ($t in $targets) {
-    $outPath = Join-Path $dist $t.out
-    Write-Step "build $($t.pkg) -> $t.out"
-    & go build -trimpath -ldflags "-s -w" -o $outPath $t.pkg
-    if ($LASTEXITCODE -ne 0) { throw "build $($t.pkg) failed" }
+    $outName = $t["out"]
+    $outPath = Join-Path $dist $outName
+    Write-Step "build $($t["pkg"]) -> $outName"
+    & go build -trimpath -ldflags "-s -w" -o $outPath $t["pkg"]
+    if ($LASTEXITCODE -ne 0) { throw "build $($t["pkg"]) failed" }
 }
 
 Write-Ok "assets ready:"

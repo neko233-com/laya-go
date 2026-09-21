@@ -20,7 +20,7 @@ This repository is the Go **server + agent-side integration** that replaces the 
 | [`server/`](server/) | `laya-server` | HTTP decision server |
 | [`cli/`](cli/) | `laya` | Agent-side CLI |
 | [`mcp/`](mcp/) | `laya-mcp` | MCP tools for AI agents |
-| [`deploy/`](deploy/) | `laya-deploy` | Go deploy server + ps1/sh one-click |
+| [`deploy/`](deploy/) | `laya-deploy` | Go deploy server + Windows service + auto-update + ps1/sh |
 
 Shared engine and client live under `internal/`. Long-term docs: [`docs/`](docs/).
 
@@ -51,12 +51,31 @@ Deploy server is written in Go (`deploy/`) and hosts the Laya model API plus `/d
 
 Client base URL after deploy: `http://127.0.0.1:7400` (`LAYA_URL`). Details: [`docs/deploy.md`](docs/deploy.md).
 
+### Windows service + auto-update (port 7400)
+
+```powershell
+# Administrator PowerShell
+.\deploy\install-service.ps1 -Port 7400
+```
+
+Service `LayaDeploy` installs to `%ProgramData%\Laya` with `config.json`. Auto-update is toggleable:
+
+```powershell
+# turn off
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+# turn on
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+```
+
+Publish updates for auto-update: `.\deploy\publish-release.ps1 -Tag vX.Y.Z`.
+
 ## Config
 
 | Variable | Component | Default |
 | --- | --- | --- |
 | `LAYA_ADDR` | server | `127.0.0.1:7710` |
-| `LAYA_URL` | cli / mcp | `http://127.0.0.1:7710` |
+| `LAYA_URL` | cli / mcp / deploy | `http://127.0.0.1:7400` after deploy |
+| `LAYA_CONFIG` | laya-deploy | `%ProgramData%\Laya\config.json` |
 
 No API keys are required for local open-source usage.
 
