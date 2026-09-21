@@ -1,7 +1,7 @@
 ---
 name: laya-deploy
-description: Use when changing laya-go deployment (deploy/main.go, deploy.ps1, deploy.sh, local port 7400, one-click install). Covers build, process lifecycle, health checks, and ops status.
-whenToUse: Any request that modifies deploy scripts, the Go deploy server, default port, or local deployment procedure for Laya.
+description: Use when changing laya-go deployment (deploy/*.go/ps1/sh), Windows service LayaDeploy, port 7400, config, or GitHub auto-update. Covers build, service lifecycle, update check/apply, and ops status.
+whenToUse: Any request that modifies deploy server code, install/uninstall scripts, service registration, auto-update, or local deployment procedure for Laya.
 user-invocable: true
 ---
 
@@ -12,32 +12,35 @@ This skill is guidance, not a replacement for repository rules. Read [AGENTS.md]
 ## Scope
 
 1. `deploy/main.go` embeds `internal/httpserver` handlers; model math stays in `internal/engine`.
-2. Deploy scripts only build, start, stop, and verify. They must not invent a second scoring path.
-3. Default local port is **7400**. Scripts accept override; docs and smoke commands should stay consistent.
+2. Version is owned by [internal/version/version.go](../../../internal/version/version.go). Auto-update compares GitHub tags to this value.
+3. Windows service name is `LayaDeploy`. Install layout is `%ProgramData%\Laya` with `config.json`.
+4. Auto-update is toggled in config (`auto_update.enabled` / `auto_apply`) and via `POST /deploy/config`.
 
 ## Implement
 
-- Keep `/v1/*` behavior identical to `laya-server`. Deploy-only extras live under `/deploy/status`.
-- Windows script must set `CREATE_NO_WINDOW` for child processes and not leave console hosts.
-- Unix script writes `bin/laya-deploy.pid` and `bin/laya-deploy.log`; stop uses the pid file.
-- No credentials in scripts or status payloads.
+- Keep `/v1/*` behavior identical to `laya-server`. Ops-only routes live under `/deploy/*`.
+- Service mode: `-service` or SCM detection; handle stop/shutdown via `golang.org/x/sys/windows/svc`.
+- Update apply: download `laya-deploy_<goos>_<goarch>.exe` (plus laya / laya-mcp siblings), stage as `.new`, rename running image to `.old`, restart service.
+- Windows install scripts must require elevation, stop stray `laya-deploy` on the port, and write config before `sc create`.
+- No credentials in scripts, config samples, or status payloads.
 
 ## Verify
 
 ```powershell
-.\deploy\deploy.ps1 -Port 7400
-curl.exe -s http://127.0.0.1:7400/health
+go test ./...
+go build -o bin\laya-deploy.exe .\deploy
+.\deploy\install-service.ps1 -Port 7400
+Get-Service LayaDeploy
 curl.exe -s http://127.0.0.1:7400/deploy/status
-.\bin\laya.exe health --url http://127.0.0.1:7400
-.\bin\laya.exe decide --url http://127.0.0.1:7400 --feature intent_change=0.9 --feature target_known=0.8
+curl.exe -s http://127.0.0.1:7400/deploy/update/check
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
 ```
 
 ```sh
 ./deploy/deploy.sh --port 7400
-curl -s http://127.0.0.1:7400/deploy/status
 ```
 
-Update [docs/deploy.md](../../../docs/deploy.md) when flags, ports, or stop procedure change.
+Update [docs/deploy.md](../../../docs/deploy.md) when service names, ports, config fields, or update asset names change.
 
 ## Related skills
 

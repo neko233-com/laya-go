@@ -2,88 +2,135 @@
 
 One-click local deployment for Laya: Go deploy server (`laya-deploy`) hosts the model API.
 
-## Scripts
+Default port: **7400**. Version lives in [`internal/version/version.go`](../internal/version/version.go).
+
+## One-click scripts
 
 | Script | Platform |
 | --- | --- |
-| [`deploy.ps1`](../deploy/deploy.ps1) | Windows PowerShell |
+| [`deploy.ps1`](../deploy/deploy.ps1) | Windows PowerShell (foreground/user process) |
 | [`deploy.sh`](../deploy/deploy.sh) | Linux / macOS |
 
-Default port: **7400**.
-
-## Windows
-
 ```powershell
-# from repo root
 .\deploy\deploy.ps1 -Port 7400
 ```
-
-What it does:
-
-1. `go test ./...`
-2. Build `bin/laya-deploy.exe`, `bin/laya.exe`, `bin/laya-mcp.exe`
-3. If `/health` + `/deploy/status` are already ok on the port, reuse that process
-4. Otherwise stop any previous laya-deploy on the same port
-5. Start `laya-deploy -port 7400` (Windows: no console window)
-6. Wait until `GET /health` and `GET /deploy/status` return ok
-7. Print client hints (`LAYA_URL`)
-
-Use `-SkipTests` to skip step 1. Use `-Foreground` to run in the current console.
-
-## Linux / macOS
 
 ```sh
 ./deploy/deploy.sh --port 7400
 ```
 
-Same steps as PowerShell; writes `bin/laya-deploy.pid` and `bin/laya-deploy.log`.
+## Windows service
 
-## Verify
-
-```sh
-curl -s http://127.0.0.1:7400/health
-curl -s http://127.0.0.1:7400/deploy/status
-curl -s http://127.0.0.1:7400/v1/decide \
-  -H 'content-type: application/json' \
-  -d '{"model":"laya-base","features":{"intent_change":0.9,"target_known":0.8},"top_k":3}'
-```
-
-CLI against the deploy port:
-
-```sh
-./bin/laya health --url http://127.0.0.1:7400
-./bin/laya decide --url http://127.0.0.1:7400 --feature blocked=1
-```
-
-## Stop
-
-Windows script does not leave a console window; stop via:
+Install as a Windows service (Administrator required):
 
 ```powershell
-Get-Process laya-deploy -ErrorAction SilentlyContinue | Stop-Process -Force
+.\deploy\install-service.ps1 -Port 7400
 ```
 
-Unix:
+Defaults:
 
-```sh
-kill "$(cat bin/laya-deploy.pid)" 2>/dev/null || true
+| Item | Value |
+| --- | --- |
+| Service name | `LayaDeploy` |
+| Display name | Laya Deploy Server |
+| Install dir | `%ProgramData%\Laya` |
+| Config | `%ProgramData%\Laya\config.json` |
+| Listen | `127.0.0.1:7400` |
+| Startup | Automatic |
+
+Uninstall:
+
+```powershell
+.\deploy\uninstall-service.ps1
+.\deploy\uninstall-service.ps1 -RemoveFiles
 ```
 
-## Environment for agents
+## Config file
+
+`%ProgramData%\Laya\config.json` (or `LAYA_CONFIG`, or `exeDir/laya-config.json`):
+
+```json
+{
+  "addr": "127.0.0.1:7400",
+  "auto_update": {
+    "enabled": true,
+    "auto_apply": true,
+    "interval_minutes": 360,
+    "repo": "neko233-com/laya-go",
+    "prerelease": false
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `auto_update.enabled` | Master switch for GitHub release checks |
+| `auto_update.auto_apply` | Download + stage binaries + restart service when newer release exists |
+| `auto_update.interval_minutes` | Check cadence (also runs once at startup when enabled) |
+| `auto_update.repo` | GitHub `owner/name` |
+| `auto_update.prerelease` | Include prerelease tags |
+
+## Auto-update API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/deploy/update/check` | Query GitHub for newer release |
+| GET | `/deploy/update/status` | Last check snapshot |
+| POST | `/deploy/update/apply` | Download/stage assets; `?force=1` ignores version compare |
+| GET | `/deploy/config` | Read current config |
+| POST | `/deploy/config` | Patch config; writes file; auto_update toggles apply immediately |
+
+Toggle auto-update at runtime:
+
+```powershell
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config `
+  -ContentType application/json `
+  -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+```
+
+### Update pipeline
+
+1. `enabled=true` → periodic GitHub releases query.
+2. Newer tag than `internal/version` → `update_available=true`.
+3. `auto_apply=true` → download matching assets (`laya-deploy_windows_amd64.exe`, …) next to the service exe as `.new`.
+4. Swap running binary name to `.old`, place `.new` as current, restart `LayaDeploy` service.
+5. Next process start runs the new image.
+
+If the GitHub release has no platform assets, check reports the tag but apply will not replace binaries. Publish assets with:
+
+```powershell
+.\deploy\publish-release.ps1 -Tag v0.2.0
+```
+
+## Verify service
+
+```powershell
+Get-Service LayaDeploy
+curl.exe -s http://127.0.0.1:7400/health
+curl.exe -s http://127.0.0.1:7400/deploy/status
+curl.exe -s http://127.0.0.1:7400/deploy/update/check
+```
+
+CLI:
+
+```powershell
+$env:LAYA_URL = 'http://127.0.0.1:7400'
+& "$env:ProgramData\Laya\laya.exe" health
+& "$env:ProgramData\Laya\laya.exe" decide --feature intent_change=0.9 --feature target_known=0.8
+```
+
+## Environment
 
 ```text
 LAYA_URL=http://127.0.0.1:7400
+LAYA_CONFIG=C:\ProgramData\Laya\config.json
 ```
 
-MCP host config should set the same value on `laya-mcp`.
+## Notes
 
-## Layout
+- Service install requires elevation.
+- `addr` changes in config need service restart; `auto_update` toggles apply without restart.
+- Deploy API has no auth; bind to loopback unless a gateway is in front.
+- Ad-hoc `deploy.ps1` process and the Windows service must not fight on port 7400; install script stops stray processes first.
 
-| Path | Role |
-| --- | --- |
-| `deploy/main.go` | Go deploy server + embedded Laya model API |
-| `deploy/deploy.ps1` | Windows one-click |
-| `deploy/deploy.sh` | Unix one-click |
-| `bin/laya-deploy` | Built deploy binary |
-
-Related: [api.md](api.md), [development.md](development.md).
+Related: [api.md](api.md), [development.md](development.md), [architecture.md](architecture.md).

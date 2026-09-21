@@ -9,10 +9,11 @@ import (
 
 	"github.com/neko233-com/laya-go/internal/apitypes"
 	"github.com/neko233-com/laya-go/internal/engine"
+	"github.com/neko233-com/laya-go/internal/version"
 )
 
 // Version is the service version string.
-const Version = "0.1.0"
+var Version = version.Version
 
 // Server is the Laya HTTP server.
 type Server struct {

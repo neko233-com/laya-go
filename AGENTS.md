@@ -39,6 +39,16 @@ One-click local deploy (default port **7400**):
 ./deploy/deploy.sh --port 7400
 ```
 
+Windows service + auto-update (Administrator):
+
+```powershell
+.\deploy\install-service.ps1 -Port 7400
+# toggle auto-update
+Invoke-RestMethod -Method Post http://127.0.0.1:7400/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+```
+
+Service details: [docs/deploy.md](docs/deploy.md). Version: `internal/version/version.go`.
+
 Smoke:
 
 ```sh
