@@ -1,0 +1,10 @@
+{
+  "addr": "0.0.0.0:7710",
+  "auto_update": {
+    "enabled": true,
+    "auto_apply": true,
+    "interval_minutes": 360,
+    "repo": "neko233-com/laya-go",
+    "prerelease": false
+  }
+}

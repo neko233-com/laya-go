@@ -1,0 +1,30 @@
+{
+  "models": [
+    {
+      "id": "laya-base",
+      "description": "Default open System 1 decision model for agent tool routing (overlay-tuned).",
+      "temperature": 0.15,
+      "patterns": [
+        {
+          "id": "tool.edit",
+          "bias": 0.08,
+          "weights": {
+            "intent_change": 1.6,
+            "target_known": 0.55,
+            "has_plan": 0.45
+          }
+        },
+        {
+          "id": "lan.escalate",
+          "name": "escalate to human on LAN high risk",
+          "bias": -0.4,
+          "priority": 20,
+          "weights": {
+            "risk_high": 1.2,
+            "blocked": 0.4
+          }
+        }
+      ]
+    }
+  ]
+}
