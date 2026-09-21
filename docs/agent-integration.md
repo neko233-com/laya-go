@@ -22,6 +22,51 @@ Use one of three integration styles:
 
 Replace `<laya-host>` with the deploy machine LAN address reachable by the agent. Local agents on the deploy host can use `127.0.0.1`.
 
+## One-click global install (`laya-mcp`)
+
+Repo scripts install **laya-mcp globally** (binary on user PATH + MCP entries for known agents).
+
+### Windows
+
+```powershell
+# local server default http://127.0.0.1:7710
+.\deploy\install-mcp.ps1
+
+# teammates pointing at LAN deploy host
+.\deploy\install-mcp.ps1 -Url http://<laya-host>:7710
+```
+
+What it does:
+
+1. `go build ./mcp` (or reuse existing binary)
+2. Copy to `%LOCALAPPDATA%\Laya\bin\laya-mcp.exe` (+ `laya-mcp.cmd` shim)
+3. Append install dir to **user PATH**
+4. Merge MCP name `laya` into:
+   - MiMo Desktop `%USERPROFILE%\.config\mimocode\mimocode.jsonc`
+   - Codex `%USERPROFILE%\.codex\config.toml`
+   - Claude Desktop / Claude Code config when present
+5. Stdio smoke test against `LAYA_URL`
+
+Uninstall binary/PATH:
+
+```powershell
+.\deploy\uninstall-mcp.ps1
+.\deploy\uninstall-mcp.ps1 -RemoveAgentEntries
+```
+
+### Linux / macOS
+
+```sh
+./deploy/install-mcp.sh
+./deploy/install-mcp.sh --url http://<laya-host>:7710
+```
+
+Installs to `~/.local/bin/laya-mcp` and merges the same agent configs when files exist.
+
+**Restart** Codex / MiMo / Claude after install so the MCP server loads.
+
+Examples under [../deploy/examples/](../deploy/examples/) if you prefer manual edits.
+
 ## Tool / API mapping
 
 | Capability | MCP tool | HTTP | CLI |
@@ -49,6 +94,8 @@ Decide request body (HTTP / MCP arguments):
 Response top field is the recommended pattern id (`tool.edit`, `tool.ask`, `agent.finish`, ...). Laya does not generate text.
 
 ## Codex CLI (OpenAI)
+
+**Recommended:** run [`../deploy/install-mcp.ps1`](../deploy/install-mcp.ps1) (Windows) or [`../deploy/install-mcp.sh`](../deploy/install-mcp.sh) — it writes the Codex MCP block automatically.
 
 Codex loads MCP servers from `%USERPROFILE%\.codex\config.toml` (Windows) or `~/.codex/config.toml`.
 

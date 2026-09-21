@@ -36,7 +36,17 @@ One-click local deploy (default port **7710**):
 ```
 
 ```sh
-./deploy/deploy.sh --Port 7710
+./deploy/deploy.sh --port 7710
+```
+
+Global MCP install for agents (`laya` tool on PATH + MiMo/Codex/Claude configs):
+
+```powershell
+.\deploy\install-mcp.ps1 -Url http://127.0.0.1:7710
+```
+
+```sh
+./deploy/install-mcp.sh --url http://127.0.0.1:7710
 ```
 
 Windows service + auto-update (Administrator):

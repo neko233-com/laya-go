@@ -51,6 +51,38 @@ go build -o bin/laya-mcp ./mcp
 
 部署后客户端地址：`http://127.0.0.1:7710`（`LAYA_URL`）。说明见 [`docs/deploy.md`](docs/deploy.md)。
 
+### MCP 一键全局安装（laya-mcp）
+
+```powershell
+# 本机 server
+.\deploy\install-mcp.ps1
+
+# 内网小伙伴指向部署机
+.\deploy\install-mcp.ps1 -Url http://<laya-host>:7710
+```
+
+```sh
+./deploy/install-mcp.sh --url http://<laya-host>:7710
+```
+
+会把 `laya-mcp` 装进用户 PATH，并写入 MiMo / Codex / Claude 的 MCP 配置（工具名 `laya`）。说明：[`docs/agent-integration.md`](docs/agent-integration.md)。
+
+### MCP 一键全局安装（laya-mcp）
+
+```powershell
+# 本机 server
+.\deploy\install-mcp.ps1
+
+# 内网小伙伴指向部署机
+.\deploy\install-mcp.ps1 -Url http://<laya-host>:7710
+```
+
+```sh
+./deploy/install-mcp.sh --url http://<laya-host>:7710
+```
+
+会把 `laya-mcp` 装进用户 PATH，并写入 MiMo / Codex / Claude 的 MCP 配置（工具名 `laya`）。说明：[`docs/agent-integration.md`](docs/agent-integration.md)。
+
 ### Windows 服务 + 自动更新（端口 7710）
 
 ```powershell

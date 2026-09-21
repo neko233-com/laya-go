@@ -9,4 +9,6 @@
 | [mcp.claude-code.json.sample](mcp.claude-code.json.sample) | Claude Code MCP settings |
 | [http-agent.sample.sh](http-agent.sample.sh) | HTTP/CLI smoke commands for any agent |
 
+One-click global MCP install: [`../install-mcp.ps1`](../install-mcp.ps1) / [`../install-mcp.sh`](../install-mcp.sh).
+
 Integration guide: [../../docs/agent-integration.md](../../docs/agent-integration.md).
