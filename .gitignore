@@ -1,14 +1,11 @@
 # Binaries
-bin/
-dist/
+/bin/
+/dist/
 *.exe
 *.test
-laya
-laya-server
-laya-mcp
 
 # Go
-vendor/
+/vendor/
 
 # Local
 .idea/
