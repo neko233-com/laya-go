@@ -2,153 +2,355 @@
 
 [English](README.md) | 中文
 
-面向 Agent 的开源横向 **System 1** 决策模型家族。非自回归：Laya 不生成文本，只对结构化特征做一次并行打分，输出带概率的模式排序，延迟在微秒到毫秒级。
+开源横向 **System 1** 决策模型：不生成文本，只对结构化特征一次打分，返回模式排序概率（微秒～毫秒级）。替代旧 **JEV**，给 Agent / 工具链做「下一步干什么」的快速判断。
 
-本仓库是替代旧 **JEV** 决策服务的 Go **服务器 + Agent 侧接入**。
+**一句话用法：** 起一个 `laya-deploy`（默认 `0.0.0.0:7710`），Agent 用 MCP/HTTP/CLI 调 `decide`，拿 `top.id` 当动作。
 
-## 能力
+---
 
-- 托管开源 Laya 家族：`laya-mini`、`laya-base`、`laya-pro`
-- HTTP 结构化模式概率预测
-- Agent CLI（`laya`）与 MCP 服务（`laya-mcp`），作为 JEV 的替换面
-- 稳定 pattern ID，供 Agent 工具路由（`tool.edit`、`agent.finish`、`guard.block` 等）
+## 30 秒跑起来
 
-## 组件
-
-| 目录 | 二进制 | 职责 |
-| --- | --- | --- |
-| [`server/`](server/) | `laya-server` | HTTP 决策服务 |
-| [`cli/`](cli/) | `laya` | Agent 侧 CLI |
-| [`mcp/`](mcp/) | `laya-mcp` | 给 AI Agent 的 MCP 工具 |
-| [`deploy/`](deploy/) | `laya-deploy` | Go 部署服务器 + Windows 服务 + 自动更新 + ps1/sh |
-
-引擎与客户端在 `internal/`。长期文档见 [`docs/`](docs/)。
-
-## 安装 / 运行
-
-```sh
-go test ./...
-go build -o bin/laya-server ./server
-go build -o bin/laya ./cli
-go build -o bin/laya-mcp ./mcp
-
-./bin/laya-server -addr 127.0.0.1:7710
-./bin/laya health
-./bin/laya decide --feature intent_change=0.9 --feature target_known=0.8 --top-k 3
-```
-
-### 一键部署（端口 7710）
-
-部署服务器用 Go 编写（`deploy/`），在同一进程提供 Laya 模型服务与 `/deploy/status`。
+**部署机（管理员 PowerShell）：**
 
 ```powershell
-.\deploy\deploy.ps1 -Port 7710
-```
-
-```sh
-./deploy/deploy.sh --Port 7710
-```
-
-部署后客户端地址：`http://127.0.0.1:7710`（`LAYA_URL`）。说明见 [`docs/deploy.md`](docs/deploy.md)。
-
-### MCP 一键全局安装（laya-mcp）
-
-```powershell
-# 本机 server
-.\deploy\install-mcp.ps1
-
-# 内网小伙伴指向部署机
-.\deploy\install-mcp.ps1 -Url http://<laya-host>:7710
-```
-
-```sh
-./deploy/install-mcp.sh --url http://<laya-host>:7710
-```
-
-会把 `laya-mcp` 装进用户 PATH，并写入 MiMo / Codex / Claude 的 MCP 配置（工具名 `laya`）。说明：[`docs/agent-integration.md`](docs/agent-integration.md)。
-
-### MCP 一键全局安装（laya-mcp）
-
-```powershell
-# 本机 server
-.\deploy\install-mcp.ps1
-
-# 内网小伙伴指向部署机
-.\deploy\install-mcp.ps1 -Url http://<laya-host>:7710
-```
-
-```sh
-./deploy/install-mcp.sh --url http://<laya-host>:7710
-```
-
-会把 `laya-mcp` 装进用户 PATH，并写入 MiMo / Codex / Claude 的 MCP 配置（工具名 `laya`）。说明：[`docs/agent-integration.md`](docs/agent-integration.md)。
-
-### Windows 服务 + 自动更新（端口 7710）
-
-```powershell
-# 管理员 PowerShell
+git clone https://github.com/neko233-com/laya-go.git
+cd laya-go
 .\deploy\install-service.ps1 -Port 7710
 ```
 
-服务名 `LayaDeploy`，安装目录 `%ProgramData%\Laya`，配置 `config.json`。自动更新可开关：
+服务 `LayaDeploy` 会监听 `0.0.0.0:7710`，模型 API + 管理后台同一进程。
+
+**本机或同事机器（Agent 接入）：**
 
 ```powershell
-# 关闭自动更新
-Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
-# 打开自动更新
-Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+.\deploy\install-mcp.ps1 -Url http://127.0.0.1:7710
+# 内网同事把 URL 换成部署机 IP，例如 http://192.168.x.x:7710
 ```
 
-发版给自动更新用：`.\deploy\publish-release.ps1 -Tag vX.Y.Z`。
+然后**重启** Codex / MiMo / Claude，MCP 工具名：`laya`。
 
-## 配置
+**立刻验证：**
 
-| 环境变量 | 组件 | 默认值 |
+```sh
+curl -s http://127.0.0.1:7710/health
+curl -s http://127.0.0.1:7710/v1/decide -H 'content-type: application/json' \
+  -d '{"features":{"intent_change":0.9,"target_known":0.8},"top_k":3}'
+```
+
+浏览器打开管理后台：`http://127.0.0.1:7710/admin`（内网用部署机 IP）。
+
+---
+
+## 你是谁？选一条路
+
+| 角色 | 你要做的 | 入口 |
 | --- | --- | --- |
-| `LAYA_ADDR` | server / deploy | `0.0.0.0:7710` |
-| `LAYA_URL` | cli / mcp | `http://<本机IP>:7710` 或 `http://127.0.0.1:7710` |
-| `LAYA_CONFIG` | laya-deploy | `%ProgramData%\Laya\config.json` |
+| 部署 / 运维 | 装服务、开给内网、看监控、热更模型 | 下文「部署与后台」 |
+| 内网同事 | 装 MCP 或直接 HTTP，让自己的 Agent 调 Laya | 下文「Agent 怎么用」 |
+| 写 Agent 的人 | 把状态编成 feature，消费 `top.id` | 下文「怎么用得爽」 |
+| 从 JEV 迁过来 | 兼容接口 + 动作名映射 | [`docs/jev-migration.md`](docs/jev-migration.md) |
 
-本地开源使用不需要 API Key。默认监听 `0.0.0.0:7710` 供内网访问；**无鉴权**，请只在可信内网开放，或用防火墙限制来源。
+---
 
-## 替换 JEV
+## 安装
+
+### 服务端（部署机）
+
+| 方式 | 命令 | 说明 |
+| --- | --- | --- |
+| Windows 服务（推荐） | `.\deploy\install-service.ps1 -Port 7710` | 需管理员；开机自启；目录 `%ProgramData%\Laya` |
+| 一键前台 | `.\deploy\deploy.ps1 -Port 7710` | 无服务；进程跑在当前会话 |
+| Linux / macOS | `./deploy/deploy.sh --port 7710` | 写 `bin/laya-deploy.pid` + log |
+
+源码构建：
+
+```sh
+go test ./...
+go build -o bin/laya-deploy ./deploy
+go build -o bin/laya ./cli
+go build -o bin/laya-mcp ./mcp
+./bin/laya-deploy -addr 0.0.0.0:7710
+```
+
+### 客户端 / Agent（全局 MCP）
+
+```powershell
+.\deploy\install-mcp.ps1 -Url http://<laya-host>:7710
+```
+
+```sh
+./deploy/install-mcp.sh --url http://<laya-host>:7710
+```
+
+会：编译/复制 `laya-mcp` → 用户 PATH → 自动写入 MiMo Desktop / Codex / Claude 的 MCP 配置。  
+卸载：`.\deploy\uninstall-mcp.ps1`（`-RemoveAgentEntries` 连配置一起清）。
+
+### 开发模式（不装服务）
+
+```powershell
+go build -o bin\laya-server.exe .\server
+.\bin\laya-server.exe -addr 127.0.0.1:7710
+$env:LAYA_URL = "http://127.0.0.1:7710"
+.\bin\laya.exe decide --feature goal_done=1 --json
+```
+
+---
+
+## Agent 怎么用
+
+三种姿势，任选其一。完整配置样例见 [`docs/agent-integration.md`](docs/agent-integration.md) 与 [`deploy/examples/`](deploy/examples/)。
+
+### 1. MCP（推荐给 Codex / Claude / MiMo）
+
+工具：
+
+| 工具 | 作用 |
+| --- | --- |
+| `laya_health` | 服务是否活着 |
+| `laya_models` | 有哪些模型和 pattern |
+| `laya_decide` | 结构化决策；`jev_compat: true` 走兼容语义 |
+
+`laya_decide` 参数示例：
+
+```json
+{
+  "model": "laya-base",
+  "features": {
+    "intent_change": 0.9,
+    "target_known": 0.8,
+    "has_plan": 0.6
+  },
+  "top_k": 3
+}
+```
+
+### 2. HTTP（任意语言、任意 Agent）
+
+```sh
+curl -s http://<laya-host>:7710/v1/decide \
+  -H 'content-type: application/json' \
+  -d '{"model":"laya-base","features":{"blocked":1,"ambiguity":0.8},"top_k":2}'
+```
+
+返回关键看 `top.id` 和 `candidates[]`：
+
+```json
+{
+  "model": "laya-base",
+  "top": { "id": "tool.ask", "probability": 0.99, "score": 2.31 },
+  "candidates": [
+    { "id": "tool.ask", "probability": 0.99 },
+    { "id": "agent.plan", "probability": 0.001 }
+  ],
+  "latency_us": 0
+}
+```
+
+**读结果规则：** 概率最高且明显拉开差距 → 直接用 `top.id`；多个候选接近 → 按业务策略在 `candidates` 里挑，或补 feature 再问一次。
+
+### 3. CLI（脚本 / shell Agent）
+
+```powershell
+$env:LAYA_URL = "http://<laya-host>:7710"
+laya health
+laya models
+laya decide --model laya-base --feature intent_change=0.9 --feature target_known=0.8 --top-k 3 --json
+laya jev-decide --feature blocked=1 --json
+```
+
+---
+
+## 怎么用得爽
+
+### 1. 只喂 feature，不要喂文章
+
+服务端**不解析自然语言**。把状态压成 0～1 的结构化信号：
+
+| Feature | 含义 |
+| --- | --- |
+| `needs_context` | 缺上下文 |
+| `uncertainty` | 不确定下一步 |
+| `scope_unknown` | 改动范围不清 |
+| `intent_change` | 要改代码/行为 |
+| `target_known` | 已知道改哪个文件/命令 |
+| `has_plan` | 已有计划 |
+| `needs_verify` | 需要跑测/验证 |
+| `blocked` | 卡住，缺输入 |
+| `ambiguity` | 需求含糊 |
+| `risk_high` / `unsafe` | 高风险 / 明确不安全 |
+| `complexity` | 复杂多步 |
+| `parallelizable` | 可并行 |
+| `repetitive` | 重复操作 |
+| `external_info` | 要查外部信息 |
+| `has_error` | 刚失败过 |
+| `goal_done` | 目标看起来已完成 |
+
+未知 key 会被忽略（按 0 处理）。key 一律小写。
+
+### 2. 常见场景配方（可直接抄）
+
+| 场景 | features | 典型 top |
+| --- | --- | --- |
+| 已知要改哪、有计划 | `intent_change=0.9, target_known=0.8, has_plan=0.6` | `tool.edit` |
+| 不知道代码在哪 | `uncertainty=0.8, needs_context=0.7, scope_unknown=0.6` | `tool.search` / `tool.read` |
+| 卡住等人确认 | `blocked=0.9, ambiguity=0.8` | `tool.ask` |
+| 改完了要验证 | `needs_verify=0.9, has_plan=0.5` | `tool.run` |
+| 任务做完了 | `goal_done=0.9` | `agent.finish` |
+| 明确危险操作 | `unsafe=0.9, risk_high=0.8` | `guard.block` |
+| 大任务该先拆 | `complexity=0.8, ambiguity=0.5, scope_unknown=0.5` | `agent.plan` |
+| 刚失败要恢复 | `has_error=0.9, needs_verify=0.4` | `agent.retry` |
+
+对结果有疑问时，用 explain 看权重贡献：
+
+```sh
+curl -s http://127.0.0.1:7710/v1/explain -H 'content-type: application/json' \
+  -d '{"pattern_id":"tool.edit","features":{"intent_change":1,"target_known":1}}'
+```
+
+### 3. 选对模型
+
+| 模型 | 何时用 |
+| --- | --- |
+| `laya-mini` | 高频、只要粗路由（read/edit/run/ask/finish） |
+| `laya-base`（默认） | 日常 Agent 工具路由 |
+| `laya-pro` | 复杂多步：多 `agent.research` / `reflect` / `tool.batch` 等 |
+
+默认不传 `model` 就是 `laya-base`。
+
+### 4. 给 Agent 的系统提示里写死约定
+
+写进 Codex / Claude / MiMo 的项目说明，Agent 会稳很多：
+
+```text
+需要「下一步动作」时调用 Laya（MCP laya_decide 或 HTTP /v1/decide）：
+- 把当前状态编成 features（0~1 小写 key），不要发长文
+- 用返回的 top.id / candidates[].id 作为动作词表
+- 若出现 guard.block：停止并升级给人，不要强行执行
+- Laya 只建议、不执行工具；执行仍由你自己决定
+```
+
+### 5. 用好管理后台
+
+`http://<laya-host>:7710/admin`
+
+- 看服务健康、版本、模型列表
+- 看 decide 流量、模型/ pattern 分布、最近决策
+- 一键「热更新」（重载 `config.json` + `models.json`）
+- 一键开关自动更新 / 手动检查更新
+
+接口：`GET /admin/api/overview`，`POST /admin/api/reload`。
+
+### 6. 热更模型，不重启服务
+
+把覆盖文件放到服务配置同目录：
+
+```text
+%ProgramData%\Laya\models.json
+```
+
+样例：[`deploy/examples/models.overlay.sample.json`](deploy/examples/models.overlay.sample.json)
+
+可改内置模型权重，也可**新增 pattern**（例如 `lan.escalate`）。改完后台点「热更新」或：
+
+```sh
+curl -s -X POST http://127.0.0.1:7710/admin/api/reload -d '{}'
+```
+
+无需重启 `LayaDeploy`。
+
+### 7. 自动更新（可开关）
+
+默认开：定期查 GitHub Release，有新版本则下载并重启服务。
+
+```powershell
+# 关
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json `
+  -Body '{"auto_update":{"enabled":false,"auto_apply":false,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+# 开
+Invoke-RestMethod -Method Post http://127.0.0.1:7710/deploy/config -ContentType application/json `
+  -Body '{"auto_update":{"enabled":true,"auto_apply":true,"interval_minutes":360,"repo":"neko233-com/laya-go","prerelease":false}}'
+```
+
+发版给全内网自动拉：
+
+```powershell
+.\deploy\publish-release.ps1 -Tag v0.3.0
+```
+
+### 8. 从 JEV 迁过来
 
 ```sh
 # 过渡
 laya jev-decide --feature blocked=1 --json
+curl -s http://<laya-host>:7710/v1/jev/decide -d '{"features":{"blocked":1}}' -H 'content-type: application/json'
 
 # 目标
 laya decide --model laya-base --feature blocked=1 --feature ambiguity=0.5
 ```
 
-MCP 工具更名：`jev decide` → `laya_decide`（切换期可传 `jev_compat: true`）。
+MCP：`jev decide` → `laya_decide`（必要时 `jev_compat: true`）。  
+对照表：[`docs/jev-migration.md`](docs/jev-migration.md)。
 
-完整对照：[`docs/jev-migration.md`](docs/jev-migration.md)。  
-外部 Agent（Codex / Claude Code / MiMo / HTTP / CLI）接入：[`docs/agent-integration.md`](docs/agent-integration.md)。
+### 9. 提交前自测清单（爽且不踩坑）
 
-## API 速览
+1. `GET /health` 是 `ok`
+2. `/admin` 打得开，metrics 在涨
+3. MCP 在 Agent 里能列出 `laya_decide`
+4. 用一条真实 feature 打 `decide`，`top.id` 符合直觉
+5. 内网同事 `curl http://<部署机IP>:7710/health` 通
 
-```sh
-curl -s http://127.0.0.1:7710/v1/decide \
-  -H 'content-type: application/json' \
-  -d '{"model":"laya-base","features":{"intent_change":0.9,"target_known":0.8},"top_k":3}'
-```
+---
 
-契约：[`docs/api.md`](docs/api.md)。架构：[`docs/architecture.md`](docs/architecture.md)。
+## 配置
 
-## Agent Skill
+| 变量 / 文件 | 组件 | 默认 |
+| --- | --- | --- |
+| `LAYA_ADDR` / `-addr` | laya-deploy / laya-server | `0.0.0.0:7710` |
+| `LAYA_URL` | cli / mcp | `http://127.0.0.1:7710` |
+| `LAYA_CONFIG` | laya-deploy | `%ProgramData%\Laya\config.json` |
+| `%ProgramData%\Laya\models.json` | 模型 overlay | 无则用内置模型 |
 
-- [`.mimocode/skills/laya-server`](.mimocode/skills/laya-server/SKILL.md)
-- [`.mimocode/skills/laya-cli`](.mimocode/skills/laya-cli/SKILL.md)
-- [`.mimocode/skills/laya-mcp`](.mimocode/skills/laya-mcp/SKILL.md)
+无需 API Key。**无鉴权**：默认 `0.0.0.0:7710` 仅适合可信内网，更大暴露面请加防火墙或网关。
 
-仓库规则：[`AGENTS.md`](AGENTS.md)。文档规则：[`docs/AGENTS.md`](docs/AGENTS.md)。
+---
+
+## 组件
+
+| 目录 | 二进制 | 职责 |
+| --- | --- | --- |
+| [`deploy/`](deploy/) | `laya-deploy` | 部署服务 + 模型 API + `/admin` + 服务/自动更新脚本 |
+| [`server/`](server/) | `laya-server` | 精简 HTTP 决策进程 |
+| [`cli/`](cli/) | `laya` | 命令行客户端 |
+| [`mcp/`](mcp/) | `laya-mcp` | MCP（stdio）给 AI Agent |
+
+内置模型：`laya-mini` / `laya-base` / `laya-pro`。  
+稳定 pattern：`tool.search|read|edit|run|ask`，`agent.plan|delegate|retry|finish`，`agent.research|reflect`，`tool.batch`，`guard.block`。
+
+---
+
+## 文档与 Skill
+
+| 文档 | 内容 |
+| --- | --- |
+| [`docs/agent-integration.md`](docs/agent-integration.md) | Codex / Claude / MiMo / HTTP / CLI 接入 |
+| [`docs/deploy.md`](docs/deploy.md) | 部署、服务、端口、停止/验证 |
+| [`docs/api.md`](docs/api.md) | HTTP 契约与 feature 表 |
+| [`docs/architecture.md`](docs/architecture.md) | System 1 架构与打分 |
+| [`docs/jev-migration.md`](docs/jev-migration.md) | JEV 迁移 |
+| [`docs/development.md`](docs/development.md) | 构建与测试 |
+
+Agent 改仓库时用的 skill：`laya-server` / `laya-cli` / `laya-mcp` / `laya-deploy`（`.mimocode/skills/`）。  
+仓库规则：[`AGENTS.md`](AGENTS.md)。
+
+---
 
 ## 已知限制
 
-- 内置模型是规则/权重模式，不是神经网络权重。它们演示 System 1 服务契约；后续可用训练权重替换打分而不改 API。
-- Laya 只做建议，不执行工具、不做策略裁决。`guard.block` 只是信号。
-- 自然语言意图需调用方转成 feature；服务端不做文本解析。
+- 内置是规则/权重，不是神经网络 checkpoint；API 可挂真模型权重。
+- 只建议不执行；`guard.block` 不是强制策略引擎。
+- 自然语言必须由调用方转成 feature。
+- 无鉴权；内网开放等于同网段全开。
+- GitHub 匿名查更新可能 403（限流）。
 
 ## License
 
