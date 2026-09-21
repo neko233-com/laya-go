@@ -82,7 +82,7 @@ Write-Step "checking git tag $tagNorm"
 git fetch --tags origin 2>$null
 $existing = git tag -l $tagNorm
 if (-not $existing) {
-    git -c user.name="neko233" -c user.email="neko233@users.noreply.github.com" tag $tagNorm
+    git -c user.name="neko233-com" -c user.email="neko233-com@users.noreply.github.com" tag $tagNorm
     git push origin $tagNorm
 } else {
     Write-Step "tag $tagNorm already exists"

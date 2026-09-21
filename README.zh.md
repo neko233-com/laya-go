@@ -120,3 +120,7 @@ curl -s http://127.0.0.1:7710/v1/decide \
 ## License
 
 MIT — 见 [LICENSE](LICENSE)。
+
+## 贡献者
+
+- [neko233-com](https://github.com/neko233-com)

@@ -122,3 +122,7 @@ Repo rules: [`AGENTS.md`](AGENTS.md). Docs rules: [`docs/AGENTS.md`](docs/AGENTS
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Contributors
+
+- [neko233-com](https://github.com/neko233-com)
