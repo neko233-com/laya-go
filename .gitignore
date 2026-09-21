@@ -1,0 +1,22 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.test
+laya
+laya-server
+laya-mcp
+
+# Go
+vendor/
+
+# Local
+.idea/
+.vscode/
+*.log
+.env
+.env.*
+
+# OS
+Thumbs.db
+.DS_Store
