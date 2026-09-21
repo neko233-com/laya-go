@@ -20,6 +20,7 @@
 | [`server/`](server/) | `laya-server` | HTTP 决策服务 |
 | [`cli/`](cli/) | `laya` | Agent 侧 CLI |
 | [`mcp/`](mcp/) | `laya-mcp` | 给 AI Agent 的 MCP 工具 |
+| [`deploy/`](deploy/) | `laya-deploy` | Go 部署服务器 + ps1/sh 一键部署 |
 
 引擎与客户端在 `internal/`。长期文档见 [`docs/`](docs/)。
 
@@ -35,6 +36,20 @@ go build -o bin/laya-mcp ./mcp
 ./bin/laya health
 ./bin/laya decide --feature intent_change=0.9 --feature target_known=0.8 --top-k 3
 ```
+
+### 一键部署（端口 7400）
+
+部署服务器用 Go 编写（`deploy/`），在同一进程提供 Laya 模型服务与 `/deploy/status`。
+
+```powershell
+.\deploy\deploy.ps1 -Port 7400
+```
+
+```sh
+./deploy/deploy.sh --port 7400
+```
+
+部署后客户端地址：`http://127.0.0.1:7400`（`LAYA_URL`）。说明见 [`docs/deploy.md`](docs/deploy.md)。
 
 ## 配置
 

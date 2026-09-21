@@ -20,6 +20,7 @@ This repository is the Go **server + agent-side integration** that replaces the 
 | [`server/`](server/) | `laya-server` | HTTP decision server |
 | [`cli/`](cli/) | `laya` | Agent-side CLI |
 | [`mcp/`](mcp/) | `laya-mcp` | MCP tools for AI agents |
+| [`deploy/`](deploy/) | `laya-deploy` | Go deploy server + ps1/sh one-click |
 
 Shared engine and client live under `internal/`. Long-term docs: [`docs/`](docs/).
 
@@ -35,6 +36,20 @@ go build -o bin/laya-mcp ./mcp
 ./bin/laya health
 ./bin/laya decide --feature intent_change=0.9 --feature target_known=0.8 --top-k 3
 ```
+
+### One-click deploy (port 7400)
+
+Deploy server is written in Go (`deploy/`) and hosts the Laya model API plus `/deploy/status`.
+
+```powershell
+.\deploy\deploy.ps1 -Port 7400
+```
+
+```sh
+./deploy/deploy.sh --port 7400
+```
+
+Client base URL after deploy: `http://127.0.0.1:7400` (`LAYA_URL`). Details: [`docs/deploy.md`](docs/deploy.md).
 
 ## Config
 

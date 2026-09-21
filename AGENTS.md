@@ -11,6 +11,7 @@ Laya does **not** generate text. Clients send structured features; the engine sc
 | `server/` | HTTP decision server (`laya-server`) |
 | `cli/` | Agent-side CLI (`laya`) |
 | `mcp/` | MCP server for AI agents (`laya-mcp`) |
+| `deploy/` | Go deploy server (`laya-deploy`) + ps1/sh one-click scripts |
 | `internal/engine` | System 1 scoring + built-in model family |
 | `internal/httpserver` | HTTP routes and JSON contract |
 | `internal/client` | Shared HTTP client used by CLI/MCP |
@@ -25,6 +26,17 @@ go test ./...
 go build -o bin/laya-server ./server
 go build -o bin/laya ./cli
 go build -o bin/laya-mcp ./mcp
+go build -o bin/laya-deploy ./deploy
+```
+
+One-click local deploy (default port **7400**):
+
+```powershell
+.\deploy\deploy.ps1 -Port 7400
+```
+
+```sh
+./deploy/deploy.sh --port 7400
 ```
 
 Smoke:
@@ -52,6 +64,8 @@ Smoke:
 | [.mimocode/skills/laya-server/SKILL.md](.mimocode/skills/laya-server/SKILL.md) | Changing the HTTP server |
 | [.mimocode/skills/laya-cli/SKILL.md](.mimocode/skills/laya-cli/SKILL.md) | Changing the CLI |
 | [.mimocode/skills/laya-mcp/SKILL.md](.mimocode/skills/laya-mcp/SKILL.md) | Changing the MCP server / agent integration |
+| [.mimocode/skills/laya-deploy/SKILL.md](.mimocode/skills/laya-deploy/SKILL.md) | Changing deploy server or ps1/sh scripts |
+| [docs/deploy.md](docs/deploy.md) | One-click deploy, port 7400, stop/verify |
 | [docs/jev-migration.md](docs/jev-migration.md) | Moving callers off JEV |
 
 ## Editing instructions

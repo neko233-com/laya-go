@@ -3,6 +3,9 @@
 /dist/
 *.exe
 *.test
+*.pid
+laya-deploy.log
+laya-deploy.err.log
 
 # Go
 /vendor/
